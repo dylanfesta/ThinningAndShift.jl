@@ -1,4 +1,4 @@
-# Generalized thinning & shift spike-train generative model
+# Generalized Thinning & Shift Generative Model for Spike-trains
 
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dylanfesta.github.io/ThinningAndShift.jl/dev)
 [![Build Status](https://github.com/dylanfesta/ThinningAndShift.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/dylanfesta/ThinningAndShift.jl/actions/workflows/CI.yml?query=branch%3Amain)
