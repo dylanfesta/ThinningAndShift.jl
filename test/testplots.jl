@@ -7,36 +7,43 @@ using ThinningAndShift ; global const T = ThinningAndShift
 using Random
 Random.seed!(0)
 using Plots; using NamedColors; theme(:dark)
+using LinearAlgebra
 ##
 
 markings = [ [1,2],]
 markings_probs = [1.0]
-const mySigma = let σ1sq = 0.17,σ2sq = 0.2, ρ = 0.7
-    [ σ1sq ρ*σ1sq*σ2sq   ; ρ*σ1sq*σ2sq  σ2sq ]
+const mySigma = let σ1 = 0.17,σ2 = 0.3, ρ = 0.8
+    [ σ1^2 ρ*σ1*σ2   ; ρ*σ1*σ2  σ2^2 ]
 end
 jitters = [T.JitterDistribution( MultivariateNormal(mySigma)) ,]
 
-lambda_ancestor = 100.0
+const lambda_ancestor = 50.0
+const Tend = 20_000.0
 
 gtas_test = T.GTAS(lambda_ancestor,markings,markings_probs,jitters)
+trains,t_ancestor,attr = T.make_samples_with_ancestor(gtas_test,20_000.0)
 
-T.get_expected_rates(gtas_test)
+##
+const dtcov = 0.25
+const Tcov = 5.0
+timescov,covboth = T.covariance_density_numerical(trains,dtcov,Tcov)
+
+@show lambda_ancestor/dtcov;
+@show covboth[1,1,1] ;
+
+std_diff = sqrt(mySigma[1,1]+mySigma[2,2] - 2*mySigma[1,2])
+density_an = Normal(0.0,std_diff)
+density_an_vals = lambda_ancestor .* pdf.(density_an,timescov)
+density_num =  @. 0.5(covboth[:,1,2]+covboth[:,2,1])
+plot(timescov,[density_an_vals density_num])
+
 ##
 
-trains,t_ancestor,attr = T.make_samples_with_ancestor(gtas_test,10_000.0)
+const dT = 25.0
+times,rates  = T.bin_and_rates(trains,dT,Tend)
+@show mean(rates;dims=2)
+covnum = cov(rates;dims=2) * dT
 
-timescov,covboth = T.covariance_density_numerical(trains,0.15,6.0)
+lambda_ancestor
 
-var_sum = sum(mySigma) 
-std_sum = sqrt(var_sum)
-
-density_an = Normal(0.0,std_sum)
-density_an_vals = lambda_ancestor .* pdf.(density_an,timescov)
-
-plot(timescov,[ covboth[:,1,2] covboth[:,2,1] density_an_vals ])
-
-
-density_num =  @. 0.5(covboth[:,1,2]+covboth[:,2,1])
-
-plot(timescov,[ density_num density_an_vals ])
-all(isapprox.(density_an_vals,covboth[:,1,2];atol=20.,rtol=0.3))
+##

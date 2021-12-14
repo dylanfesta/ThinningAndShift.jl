@@ -5,6 +5,7 @@ using Random
 
 import LinearAlgebra: dot
 import Statistics: mean,var,cov
+import StatsBase: midpoints
 
 abstract type Jittering end
 
@@ -81,7 +82,7 @@ function make_samples_with_ancestor(g::GTAS{R,I},t_tot::R) where {R,I}
 end
   
 function make_poisson_samples(rate::R,t_tot::R) where R
-  ret = Vector{R}(undef,round(Integer,1.3*rate*t_tot)) # preallocate
+  ret = Vector{R}(undef,round(Integer,1.3*rate*t_tot+10)) # preallocate
   t_curr = zero(R)
   k_curr = 1
   while t_curr <= t_tot
@@ -90,7 +91,7 @@ function make_poisson_samples(rate::R,t_tot::R) where R
     ret[k_curr] = t_curr
     k_curr += 1
   end
-  return keepat!(ret,1:k_curr-1)
+  return keepat!(ret,1:k_curr-2)
 end
 
 ####
@@ -125,6 +126,18 @@ function bin_spikes(Y::Vector{R},dt::R,Tend::R;
   end
   return ret
 end
+
+function bin_and_rates(Y::Vector{R},dt::R,Tend::R;Tstart::R=0.0) where R
+  times = range(Tstart,Tend;step=dt)  
+  return midpoints(times),bin_spikes(Y,dt,Tend;Tstart=Tstart) ./ dt
+end
+
+function bin_and_rates(Ys::Vector{Vector{R}},dt::R,Tend::R;Tstart::R=0.0) where R
+  times = range(Tstart,Tend;step=dt)
+  ret = [bin_spikes(Y,dt,Tend;Tstart=Tstart) ./ dt for Y in Ys]
+  return midpoints(times),vcat(transpose.(ret)...)
+end
+
 
 @inline function get_times_strict(dt::R,Tend::R;Tstart::R=0.0) where R<:Real
   return range(Tstart,Tend-dt;step=dt)
