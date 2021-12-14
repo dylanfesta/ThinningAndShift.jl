@@ -23,7 +23,7 @@ end
   jitters_d = fill(T.NoJitter(),3)
   gtas_test = T.GTAS(motherrat,markings,markings_probs,jitters_d)
   t_tot = 500.0
-  (t1,t2,t3),_ = T.make_samples_with_ancestor(gtas_test,t_tot)
+  (t1,t2,t3),_ = T.make_samples_with_parent(gtas_test,t_tot)
   r1_num = length(t1)/t_tot
   r2_num = length(t2)/t_tot
   r3_num = length(t3)/t_tot
@@ -44,13 +44,13 @@ end
       [ σ1^2 ρ*σ1*σ2 ; ρ*σ1*σ2  σ2^2 ]
   end
   jitters = [T.JitterDistribution( MultivariateNormal(mySigma)) ,]
-  lambda_ancestor = 100.0
-  gtas_test = T.GTAS(lambda_ancestor,markings,markings_probs,jitters)
-  trains,t_ancestor,attr = T.make_samples_with_ancestor(gtas_test,10_000.0)
+  lambda_parent = 100.0
+  gtas_test = T.GTAS(lambda_parent,markings,markings_probs,jitters)
+  trains,t_parent,attr = T.make_samples_with_parent(gtas_test,10_000.0)
   timescov,covboth = T.covariance_density_numerical(trains,0.15,6.0)
   std_diff = sqrt(mySigma[1,1]+mySigma[2,2] - 2*mySigma[1,2])
   density_an = Normal(0.0,std_diff)
-  density_an_vals = lambda_ancestor .* pdf.(density_an,timescov)
+  density_an_vals = lambda_parent .* pdf.(density_an,timescov)
   density_num =  @. 0.5(covboth[:,1,2]+covboth[:,2,1])
   @test all(isapprox.(density_an_vals,density_num;atol=10.,rtol=0.2))
 end

@@ -47,11 +47,11 @@ end
 
 struct GTAS{R,I,J<:Jittering}
   n::I
-  rate_ancestor::R
+  rate_parent::R
   markings::Vector{Vector{I}}
   marking_selector::Categorical{R}
   jitters::Vector{J}
-  function GTAS(rate_ancestor::R,markings::Vector{Vector{I}},
+  function GTAS(rate_parent::R,markings::Vector{Vector{I}},
       markings_probs::Vector{R},jitters::Vector{J}) where {R<:Real,I<:Integer,J<:Jittering}
     @assert sum(markings_probs) ≈ 1  
     @assert length(markings_probs) == length(markings)
@@ -59,14 +59,14 @@ struct GTAS{R,I,J<:Jittering}
     @assert all(issorted.(markings)) "Markings should be sorted"
     marking_select=Categorical(markings_probs)
     n = maximum(maximum.(markings))
-    return new{R,I,J}(n,rate_ancestor,markings,marking_select,jitters)
+    return new{R,I,J}(n,rate_parent,markings,marking_select,jitters)
   end
 end
 
 jitter!(v::Vector{R},k::Integer,g::GTAS) where R = jitter!(v,g.jitters[k])
 
-function make_samples_with_ancestor(g::GTAS{R,I},t_tot::R) where {R,I}
-  ts_ancestor = make_poisson_samples(g.rate_ancestor,t_tot) 
+function make_samples_with_parent(g::GTAS{R,I},t_tot::R) where {R,I}
+  ts_ancestor = make_poisson_samples(g.rate_parent,t_tot) 
   nt = length(ts_ancestor)
   attributions = rand(g.marking_selector,nt)
   trains = [Vector{R}(undef,0) for _ in 1:g.n] 
@@ -100,7 +100,7 @@ end
 function get_expected_rates(g::GTAS{R,I}) where {R,I}
   mks = g.markings
   probs = g.marking_selector.p
-  rat_an = g.rate_ancestor
+  rat_an = g.rate_parent
   ret = fill(zero(R),g.n)
   for (marks,p) in zip(mks,probs)
     for neu in marks

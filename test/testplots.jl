@@ -17,23 +17,23 @@ const mySigma = let σ1 = 0.17,σ2 = 0.3, ρ = 0.8
 end
 jitters = [T.JitterDistribution( MultivariateNormal(mySigma)) ,]
 
-const lambda_ancestor = 50.0
+const rate_parent = 50.0
 const Tend = 20_000.0
 
-gtas_test = T.GTAS(lambda_ancestor,markings,markings_probs,jitters)
-trains,t_ancestor,attr = T.make_samples_with_ancestor(gtas_test,20_000.0)
+gtas_test = T.GTAS(rate_parent,markings,markings_probs,jitters)
+trains,t_parent,attr = T.make_samples_with_parent(gtas_test,20_000.0)
 
 ##
 const dtcov = 0.25
 const Tcov = 5.0
 timescov,covboth = T.covariance_density_numerical(trains,dtcov,Tcov)
 
-@show lambda_ancestor/dtcov;
+@show rate_parent/dtcov;
 @show covboth[1,1,1] ;
 
 std_diff = sqrt(mySigma[1,1]+mySigma[2,2] - 2*mySigma[1,2])
 density_an = Normal(0.0,std_diff)
-density_an_vals = lambda_ancestor .* pdf.(density_an,timescov)
+density_an_vals = rate_parent .* pdf.(density_an,timescov)
 density_num =  @. 0.5(covboth[:,1,2]+covboth[:,2,1])
 plot(timescov,[density_an_vals density_num])
 
@@ -44,6 +44,6 @@ times,rates  = T.bin_and_rates(trains,dT,Tend)
 @show mean(rates;dims=2)
 covnum = cov(rates;dims=2) * dT
 
-lambda_ancestor
+rate_parent
 
 ##
