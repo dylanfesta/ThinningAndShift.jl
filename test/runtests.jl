@@ -20,7 +20,7 @@ end
   p1,p2,p3 = 0.6,0.3,0.1
   motherrat  = 234.5
   markings_probs = [p1,p2,p3]
-  jitters_d = fill(nothing,3)
+  jitters_d = fill(T.NoJitter(),3)
   gtas_test = T.GTAS(motherrat,markings,markings_probs,jitters_d)
   t_tot = 500.0
   (t1,t2,t3),_ = T.make_samples_with_ancestor(gtas_test,t_tot)
@@ -35,4 +35,23 @@ end
   @test isapprox(std(isis3),mean(isis3);rtol=0.2)
   rat_an = T.get_expected_rates(gtas_test) 
   @test all(isapprox.([r1_num,r2_num,r3_num],rat_an,;rtol=0.1))
+end
+
+@testset "cross-correlations, 2D, Gaussian jitter" begin
+  markings = [ [1,2],]
+  markings_probs = [1.0]
+  mySigma = let σ1sq = 0.17,σ2sq = 0.2, ρ = 0.7
+      [ σ1sq ρ*σ1sq*σ2sq   ; ρ*σ1sq*σ2sq  σ2sq ]
+  end
+  jitters = [T.JitterDistribution( MultivariateNormal(mySigma)) ,]
+  lambda_ancestor = 100.0
+  gtas_test = T.GTAS(lambda_ancestor,markings,markings_probs,jitters)
+  trains,t_ancestor,attr = T.make_samples_with_ancestor(gtas_test,10_000.0)
+  timescov,covboth = T.covariance_density_numerical(trains,0.15,6.0)
+  var_sum = sum(mySigma) 
+  std_sum = sqrt(var_sum)
+  density_an = Normal(0.0,std_sum)
+  density_an_vals = lambda_ancestor .* pdf.(density_an,timescov)
+  density_num =  @. 0.5(covboth[:,1,2]+covboth[:,2,1])
+  @test all(isapprox.(density_an_vals,covboth[:,1,2];atol=20.,rtol=0.3))
 end

@@ -1,40 +1,83 @@
 module ThinningAndShift
 
 using Distributions
-using Statistics
 using Random
 
-struct GTAS{R,I,U<:Union{Distribution,Nothing}}
+import LinearAlgebra: dot
+import Statistics: mean,var,cov
+
+abstract type Jittering end
+
+#####
+# no jittering
+struct NoJitter  <: Jittering end
+@inline function jitter!(v::Vector{Float64},::NoJitter)
+  return v
+end
+
+####
+# apply a distribution
+struct JitterDistribution{D<:Distribution} <: Jittering
+  d::D
+end
+@inline function jitter!(v::Vector{Float64},j::JitterDistribution{D}) where D<:UnivariateDistribution
+  jits = rand(j.d,length(v))
+  v .+= jits
+  return v
+end
+@inline function jitter!(v::Vector{Float64},j::JitterDistribution)
+  jits = rand(j.d)
+  v .+= jits
+  return v
+end
+
+####
+## only for sets of two, shifts one spike time w.r.t. the other
+struct JitterPaired{D<:UnivariateDistribution} <: Jittering
+  d::D
+end
+@inline function jitter!(v::Vector{Float64},j::JitterPaired)
+  ji = rand(j.d)
+  v[2] .+= ji
+  return v
+end
+
+
+
+struct GTAS{R,I,J<:Jittering}
   n::I
   rate_ancestor::R
   markings::Vector{Vector{I}}
   marking_selector::Categorical{R}
-  jitters::Vector{U}
+  jitters::Vector{J}
   function GTAS(rate_ancestor::R,markings::Vector{Vector{I}},
-      markings_probs::Vector{R},jitters::Vector{U}) where {R<:Real,I<:Integer,U<:Union{Distribution,Nothing}}
+      markings_probs::Vector{R},jitters::Vector{J}) where {R<:Real,I<:Integer,J<:Jittering}
     @assert sum(markings_probs) ≈ 1  
     @assert length(markings_probs) == length(markings)
+    @assert length(markings_probs) == length(jitters)
     @assert all(issorted.(markings)) "Markings should be sorted"
     marking_select=Categorical(markings_probs)
     n = maximum(maximum.(markings))
-    return new{R,I,U}(n,rate_ancestor,markings,marking_select,jitters)
+    return new{R,I,J}(n,rate_ancestor,markings,marking_select,jitters)
   end
 end
 
+jitter!(v::Vector{R},k::Integer,g::GTAS) where R = jitter!(v,g.jitters[k])
 
 function make_samples_with_ancestor(g::GTAS{R,I},t_tot::R) where {R,I}
   ts_ancestor = make_poisson_samples(g.rate_ancestor,t_tot) 
   nt = length(ts_ancestor)
   attributions = rand(g.marking_selector,nt)
   trains = [Vector{R}(undef,0) for _ in 1:g.n] 
-  for (t_anc,attrib) in zip(ts_ancestor,attributions)
-    for k in g.markings[attrib]
-      jitt = g.jitters[k]
-      tk = t_anc + (isnothing(jitt) ? 0.0 : rand(jitt))
-      push!(trains[k],tk)
+  for (t_k,k) in zip(ts_ancestor,attributions)
+    mark_k = g.markings[k]
+    n_k = length(mark_k)
+    spikes_k = jitter!(fill(t_k,n_k),k,g)
+    for (tkk,kk) in zip(spikes_k,mark_k)
+      push!(trains[kk],tkk)
     end
   end
-  trains,ts_ancestor,attributions
+  return trains,ts_ancestor,attributions
 end
   
 function make_poisson_samples(rate::R,t_tot::R) where R
@@ -42,9 +85,9 @@ function make_poisson_samples(rate::R,t_tot::R) where R
   t_curr = zero(R)
   k_curr = 1
   while t_curr <= t_tot
-    ret[k_curr] = t_curr
     Δt = -log(rand())/rate
     t_curr += Δt
+    ret[k_curr] = t_curr
     k_curr += 1
   end
   return keepat!(ret,1:k_curr-1)
@@ -83,43 +126,47 @@ function bin_spikes(Y::Vector{R},dt::R,Tend::R;
   return ret
 end
 
-
-function covariance_self_numerical(Y::Vector{R},dτ::R,τmax::R,
-     Tmax::Union{R,Nothing}=nothing) where R
-  ret = covariance_density_numerical([Y,],dτ,τmax,Tmax;verbose=false)
-  return ret[:,1,1]
+@inline function get_times_strict(dt::R,Tend::R;Tstart::R=0.0) where R<:Real
+  return range(Tstart,Tend-dt;step=dt)
 end
 
-function covariance_density_numerical(Ys::Vector{Vector{R}},dτ::Real,τmax::R,
-   Tmax::Union{R,Nothing}=nothing ; verbose::Bool=false) where R
-  Tmax = something(Tmax, maximum(x->x[end],Ys)- dτ)
+# the first element (zero lag) is always rate/dτ
+function covariance_self_numerical(Y::Vector{R},dτ::R,τmax::R,
+     Tend::Union{R,Nothing}=nothing) where R
+  τtimes,ret = covariance_density_numerical([Y,],dτ,τmax;verbose=false,Tend=Tend)
+  return  τtimes, ret[:,1,1]
+end
+
+function covariance_density_numerical(Ys::Vector{Vector{R}},dτ::Real,τmax::R;
+   Tend::Union{R,Nothing}=nothing,verbose::Bool=false) where R
+  Tend = something(Tend, maximum(last,Ys)- dτ)
   ndt = round(Integer,τmax/dτ)
   n = length(Ys)
   ret = Array{Float64}(undef,ndt,n,n)
   if verbose
-      @info "The full dynamical iteration has $(round(Integer,Tmax/dτ)) bins ! (too many?)"
+      @info "The full dynamical iteration has $(round(Integer,Tend/dτ)) bins ! (too many?)"
   end
   for i in 1:n
-    binnedi = bin_spikes(Ys[i],dτ,Tmax)
-    fmi = length(Ys[i]) / Tmax # mean frequency
+    binnedi = bin_spikes(Ys[i],dτ,Tend)
+    fmi = length(Ys[i]) / Tend # mean frequency
     ndt_tot = length(binnedi)
     _ret_alloc = Vector{R}(undef,ndt)
     for j in 1:n
       if verbose 
         @info "now computing cov for pair $i,$j"
       end
-      binnedj =  i==j ? binnedi : bin_spikes(Ys[j],dτ,Tmax)
-      fmj = length(Ys[j]) / Tmax # mean frequency
+      binnedj =  i==j ? binnedi : bin_spikes(Ys[j],dτ,Tend)
+      fmj = length(Ys[j]) / Tend # mean frequency
       binnedj_sh = similar(binnedj)
       @inbounds @simd for k in 0:ndt-1
         circshift!(binnedj_sh,binnedj,k)
         _ret_alloc[k+1] = dot(binnedi,binnedj_sh)
       end
-      @. _ret_alloc = _ret_alloc / (ndt_tot*dτ^2) - fmi*fmj
+      @. _ret_alloc = (_ret_alloc / (ndt_tot*dτ^2)) - fmi*fmj
       ret[:,i,j] = _ret_alloc
     end
   end
-  return ret
+  return get_times_strict(dτ,τmax), ret
 end
 
 
