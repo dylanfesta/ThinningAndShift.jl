@@ -81,6 +81,15 @@ function make_samples_with_parent(g::GTAS{R,I},t_tot::R) where {R,I}
       push!(trains[kk],tkk)
     end
   end
+  # clean up trains... sorted, and > 0
+  sort!.(trains)
+  tmin = minimum(first.(trains))
+  if tmin < 0
+    for tr in trains
+      tr .-= tmin
+    end
+    ts_ancestor .-= tmin
+  end
   return trains,ts_ancestor,attributions
 end
   
