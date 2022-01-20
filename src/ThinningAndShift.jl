@@ -22,8 +22,11 @@ struct JitterDistribution{D<:Distribution} <: Jittering
   d::D
 end
 @inline function jitter!(v::Vector{Float64},j::JitterDistribution{D}) where D<:UnivariateDistribution
-  jits = rand(j.d,length(v))
-  v .+= jits
+  n = length(v)
+  if n > 1
+    jits = rand(j.d,n)
+    v .+= jits
+  end
   return v
 end
 @inline function jitter!(v::Vector{Float64},j::JitterDistribution)
