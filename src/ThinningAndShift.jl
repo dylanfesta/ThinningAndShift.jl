@@ -3,7 +3,7 @@ module ThinningAndShift
 using Distributions
 using Random
 
-import LinearAlgebra: dot
+import LinearAlgebra: dot,diagind
 import Statistics: mean,var,cov
 import StatsBase: midpoints
 
@@ -119,6 +119,36 @@ function get_expected_rates(g::GTAS{R,I}) where {R,I}
       ret[neu] += p*rat_an
     end
   end
+  return ret
+end
+
+function get_expected_Pearson(i::Integer,j::Integer,g::GTAS{R,I}) where {R,I}
+  marks = g.markings
+  probs = g.marking_selector.p
+  uiall = 0.0
+  ujall = 0.0
+  uijall = 0.0
+  for (mark,prob) in zip(marks,probs)
+    hasi = i in mark
+    hasj = j in mark
+    if hasi && hasj
+      uijall += prob
+    elseif hasi
+      uiall += prob
+    elseif hasj
+      ujall += prob
+    end
+  end
+  return uijall / (uijall+uiall+ujall)
+end
+
+function get_expected_Pearson(g::GTAS{R,I}) where {R,I}
+  ret = Matrix{R}(undef,g.n,g.n)
+  for i in 1:g.n, j in i+1:g.n
+    ret[i,j] = get_expected_Pearson(i,j,g)
+    ret[j,i] = ret[i,j]
+  end
+  ret[diagind(ret)] .= one(R)
   return ret
 end
 
