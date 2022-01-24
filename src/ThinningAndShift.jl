@@ -35,6 +35,20 @@ end
   return v
 end
 
+# increment by given distribution
+struct JitterIncremental{D<:UnivariateDistribution} <: Jittering
+  d::D
+end
+
+@inline function jitter!(v::Vector{Float64},j::JitterIncremental)
+  n = length(v)
+  if n>1
+    jits = sort!(rand(j.d,n-1))
+    v[2:end] .+= jits
+  end
+  return v
+end
+
 ####
 ## only for sets of two, shifts one spike time w.r.t. the other
 struct JitterPaired{D<:UnivariateDistribution} <: Jittering
@@ -59,7 +73,6 @@ struct GTAS{R,I,J<:Jittering}
     @assert sum(markings_probs) ≈ 1  
     @assert length(markings_probs) == length(markings)
     @assert length(markings_probs) == length(jitters)
-    @assert all(issorted.(markings)) "Markings should be sorted"
     marking_select=Categorical(markings_probs)
     n = maximum(maximum.(markings))
     return new{R,I,J}(n,rate_parent,markings,marking_select,jitters)
@@ -109,16 +122,27 @@ end
 ####
 # Cumulants
 
+
+function get_probability_weight(neu::I,markings::Vector{Vector{I}},
+      probs::Vector{<:Real}) where I 
+  probs_all = map(zip(markings,probs)) do (marks,p)
+    fill(p,length(marks))
+  end
+  probs_all = vcat(probs_all...)
+  marks_all = vcat(markings...)
+  idxs = findall(==(neu),marks_all)
+  return sum(probs_all[idxs])
+end
+function get_parent_rate(neu::I,rate_target::Real,markings::Vector{Vector{I}},
+     probs::Vector{<:Real}) where I<:Integer
+  ptot = get_probability_weight(neu,markings,probs)
+  return rate_target / ptot
+end
 function get_expected_rates(g::GTAS{R,I}) where {R,I}
   mks = g.markings
   probs = g.marking_selector.p
-  rat_an = g.rate_parent
-  ret = fill(zero(R),g.n)
-  for (marks,p) in zip(mks,probs)
-    for neu in marks
-      ret[neu] += p*rat_an
-    end
-  end
+  rat_par = g.rate_parent
+  ret = rat_par .* [get_probability_weight(i,mks,probs) for i in 1:g.n]
   return ret
 end
 
@@ -191,6 +215,7 @@ function covariance_self_numerical(Y::Vector{R},dτ::R,τmax::R,
   τtimes,ret = covariance_density_numerical([Y,],dτ,τmax;verbose=false,Tend=Tend)
   return  τtimes, ret[:,1,1]
 end
+
 
 function covariance_density_numerical(Ys::Vector{Vector{R}},dτ::Real,τmax::R;
    Tend::Union{R,Nothing}=nothing,verbose::Bool=false) where R
