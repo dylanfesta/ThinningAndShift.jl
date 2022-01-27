@@ -54,3 +54,20 @@ end
   density_num =  @. 0.5(covboth[:,1,2]+covboth[:,2,1])
   @test all(isapprox.(density_an_vals,density_num;atol=10.,rtol=0.2))
 end
+
+@testset "some internal stuff for negative corr" begin
+  t_tot = 10.0
+  rate = 25.0
+  train = T.make_poisson_samples(rate,t_tot)
+  antiker = T.AntiExponential(0.1)
+  d = Exponential(0.1) 
+  t_now = 0.5 + rand()*3.0
+  Cmax = 0.9999
+  testcdf,testidx = T.compute_forward_cutprob(t_now,antiker,train,
+    50,Cmax)
+  @test train[testidx] > t_now
+  @test train[testidx-1] < t_now
+  idx_end = testidx + length(testcdf) - 1
+  @test cdf(d, train[idx_end] - t_now ) > Cmax 
+  @test cdf(d, train[idx_end-1] - t_now ) < Cmax 
+end

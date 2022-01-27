@@ -293,4 +293,8 @@ function covariance_density_ij(X::Vector{R},Y::Vector{R},dτ::Real,τmax::R;
   return times_ret, ret
 end
 
+
+## include the part with anti-spikes and negative correlations 
+include("A-GTAS.jl")
+
 end # of Module

@@ -1,13 +1,34 @@
 
-using Distributions
 push!(LOAD_PATH, abspath(@__DIR__,".."))
 
 using ThinningAndShift ; global const T = ThinningAndShift
 
 using Random
 Random.seed!(0)
+using Test
 using Plots; using NamedColors; theme(:dark)
 using LinearAlgebra
+using Distributions
+
+
+##
+
+
+
+
+##
+
+_ = let x=range(0,10.;length=150)
+  d = Exponential(inv(3.0)) 
+  plot(x,cdf.(d,x);ylims=(0,1.1),xlims=(0,10),leg=false,linewidth=2)
+end
+
+
+_ = let d = Exponential(0.1) 
+  cdf(d, 0.8725210739840403 - 0.17 )
+end
+
+
 ##
 
 markings = [ [1,2],]
