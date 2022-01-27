@@ -43,7 +43,7 @@ end
 @inline function jitter!(v::Vector{Float64},j::JitterIncremental)
   n = length(v)
   if n>1
-    jits = sort!(rand(j.d,n-1))
+    jits = cumsum(rand(j.d,n-1))
     v[2:end] .+= jits
   end
   return v
@@ -133,11 +133,21 @@ function get_probability_weight(neu::I,markings::Vector{Vector{I}},
   idxs = findall(==(neu),marks_all)
   return sum(probs_all[idxs])
 end
+
+
 function get_parent_rate(neu::I,rate_target::Real,markings::Vector{Vector{I}},
      probs::Vector{<:Real}) where I<:Integer
   ptot = get_probability_weight(neu,markings,probs)
   return rate_target / ptot
 end
+function get_parent_rate_target_mean(rate_target::Real,markings::Vector{Vector{I}},
+  probs::Vector{<:Real}) where I<:Integer
+n = maximum(maximum.(markings))
+p_avg = mapreduce(neu->get_probability_weight(neu,markings,probs),+,1:n) / n
+return rate_target / p_avg
+end
+
+
 function get_expected_rates(g::GTAS{R,I}) where {R,I}
   mks = g.markings
   probs = g.marking_selector.p
@@ -146,6 +156,8 @@ function get_expected_rates(g::GTAS{R,I}) where {R,I}
   return ret
 end
 
+# UNDERESTIMATE ! Must account for oder zero ! Chance of events being in the same
+# time interval considered. This one converges to numeric only for very small time bins!
 function get_expected_Pearson(i::Integer,j::Integer,g::GTAS{R,I}) where {R,I}
   marks = g.markings
   probs = g.marking_selector.p
@@ -249,5 +261,36 @@ function covariance_density_numerical(Ys::Vector{Vector{R}},dτ::Real,τmax::R;
   return get_times_strict(dτ,τmax), ret
 end
 
+function covariance_density_ij(Ys::Vector{Vector{R}},i::Integer,j::Integer,dτ::R,τmax::R;
+   Tend::Union{R,Nothing}=nothing) where R
+  return covariance_density_ij(Ys[i],Ys[j],dτ,τmax;Tend=Tend)
+end
+
+function covariance_density_ij(X::Vector{R},Y::Vector{R},dτ::Real,τmax::R;
+    Tend::Union{R,Nothing}=nothing) where R
+  times = get_times_strict(dτ,τmax)
+  ndt = length(times)
+  times_ret = vcat(-reverse(times[2:end]),times)
+  Tend = something(Tend, max(X[end],Y[end])- dτ)
+  ret = Vector{Float64}(undef,2*ndt-1)
+  binnedx = bin_spikes(X,dτ,Tend)
+  binnedy = bin_spikes(Y,dτ,Tend)
+  fx = length(X) / Tend # mean frequency
+  fy = length(Y) / Tend # mean frequency
+  ndt_tot = length(binnedx)
+  binned_sh = similar(binnedx)
+  # 0 and forward
+  @simd for k in 0:ndt-1
+    circshift!(binned_sh,binnedy,k)
+    ret[ndt-1+k+1] = dot(binnedx,binned_sh)
+  end
+  # backward
+  @simd for k in 1:ndt-1
+    circshift!(binned_sh,binnedy,-k)
+    ret[ndt-k] = dot(binnedx,binned_sh)
+  end
+  @. ret = (ret / (ndt_tot*dτ^2)) - fx*fy
+  return times_ret, ret
+end
 
 end # of Module
