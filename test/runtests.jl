@@ -63,7 +63,7 @@ end
   d = Exponential(0.1) 
   t_now = 0.5 + rand()*3.0
   Cmax = 0.9999
-  testcdf,testidx = T.compute_forward_cutprob(t_now,antiker,train,
+  testidx,testcdf= T.compute_forward_cutprob(t_now,antiker,train,
     50,Cmax)
   @test train[testidx] > t_now
   @test train[testidx-1] < t_now

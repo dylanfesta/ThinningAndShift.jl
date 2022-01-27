@@ -12,11 +12,55 @@ using Distributions
 
 
 ##
+myrate = 80.0
+markings = [[1],[2]]
+probs = [1.,2.]
+jitters = [T.NoJitter(),T.NoJitter()]
+probs ./= sum(probs)
+antiprobs = [1.]
+antimarkings = [(1,2),]
+antikernels = [T.AntiExponential(0.1),]
 
+rate_parent = T.get_parent_rate(1,myrate,markings,probs)
+gen = T.pAGTAS(rate_parent,markings,probs,jitters,
+      antimarkings,antiprobs,antikernels)
 
 
 
 ##
+const Ttot = 5000.0
+@time trains = T.make_samples(gen,Ttot);
+
+const rates_num = [ length(tr)/Ttot for tr in trains ]
+
+##
+
+_ = let dtcov = 10E-3,
+  Tcov = 1.0
+  (covtimes,covs) =  T.covariance_density_ij(trains...,dtcov,Tcov)
+  plt = plot()
+  scatter!(plt,covtimes,covs;label="numerical",leg=false)
+  plt
+end
+
+##
+
+_ = let plt = plot(),
+  tlims = (11.,13.0),
+  msize = 34,
+  trplot1 = filter(t-> tlims[1]< t<tlims[2],trains[1])
+  trplot2 = filter(t-> tlims[1]< t<tlims[2],trains[2])
+  scatter!(plt,trplot1,fill(1.0,length(trplot1));
+    marker=:vline,markersize=msize)
+  scatter!(plt,trplot2,fill(1.05,length(trplot2));marker=:vline,
+    markersize=msize)
+  plot!(plt;ylims=(0.95,1.1),leg=false)
+end
+
+
+##
+
+_ = let r1 = length()
 
 _ = let x=range(0,10.;length=150)
   d = Exponential(inv(3.0)) 

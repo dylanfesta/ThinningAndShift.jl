@@ -105,7 +105,12 @@ function make_samples_with_parent(g::GTAS{R,I},t_tot::R) where {R,I}
   end
   return trains,ts_ancestor,attributions
 end
-  
+
+function make_samples(gtas::GTAS,t_tot::Real)
+  return make_samples_with_parent(gtas,t_tot)[1]
+end
+
+
 function make_poisson_samples(rate::R,t_tot::R) where R
   ret = Vector{R}(undef,round(Integer,1.3*rate*t_tot+10)) # preallocate
   t_curr = zero(R)
@@ -281,12 +286,12 @@ function covariance_density_ij(X::Vector{R},Y::Vector{R},dτ::Real,τmax::R;
   binned_sh = similar(binnedx)
   # 0 and forward
   @simd for k in 0:ndt-1
-    circshift!(binned_sh,binnedy,k)
+    circshift!(binned_sh,binnedy,-k)
     ret[ndt-1+k+1] = dot(binnedx,binned_sh)
   end
   # backward
   @simd for k in 1:ndt-1
-    circshift!(binned_sh,binnedy,-k)
+    circshift!(binned_sh,binnedy,k)
     ret[ndt-k] = dot(binnedx,binned_sh)
   end
   @. ret = (ret / (ndt_tot*dτ^2)) - fx*fy
