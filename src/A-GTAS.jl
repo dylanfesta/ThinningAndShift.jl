@@ -19,7 +19,7 @@ function pAGTAS(rate_parent::R,markings::Vector{Vector{I}},
     antikernels::Vector{AK}) where {R<:Real,I<:Integer,J<:Jittering,AK<:AntiKernel}
   @assert length(antimarkings) == length(antiprobabilities)
   @assert length(antikernels) == length(antiprobabilities)
-  @assert sum(antiprobabilities) ≈ 1.0
+  @assert all(<=(1.0),antiprobabilities)
   gtas = GTAS(rate_parent,markings,marking_probs,jitters)
   return pAGTAS{R,I,J,AK}(gtas,antimarkings,antiprobabilities,antikernels)
 end
@@ -94,7 +94,7 @@ function make_samples(g::pAGTAS,t_tot::Real)
       if t_now > t_tot
         break
       elseif rand() < p
-        apply_antispike!(t_now,antiker,trainpost)
+        apply_antispike2!(t_now,antiker,trainpost)
       end
     end
   end
@@ -104,4 +104,38 @@ function make_samples(g::pAGTAS,t_tot::Real)
     keepat!(train,1:idx-1)
   end
   return trains
+end
+
+
+
+function compute_forward_cutprobabilities(t_now::R,antiker::AntiKernel,
+    train::Vector{R},eps_prob::R) where R
+  idxstart = searchsortedfirst(train,t_now+eps())
+  t_last = t_now + antikernel_horizon(antiker,eps_prob)
+  idxend = searchsortedfirst(train,t_last)-1
+  if idxend == length(train)-1
+    @error "Not enough spikes left ! More spikes needed!"
+  end
+  ret = compute_forward_cutprobabilities(t_now,view(train,idxstart:idxend),antiker)
+  return (idxstart,ret)
+end
+
+@inline function antikernel_horizon(antiker::AntiExponential,eps_prob::Float64)
+  τ = antiker.τ
+  return - τ * (log(τ)+log(eps_prob))
+end
+
+@inline function compute_forward_cutprobabilities(t_now::Real,train::SubArray{Float64},antiker::AntiExponential)
+  d = Exponential(antiker.τ)
+  ret = map(t -> pdf(d,t-t_now),train)
+  ret ./= sum(ret)
+  return ret
+end
+
+function apply_antispike2!(t_now::R,antiker::AntiExponential,
+      train::Vector{R};eps_prob::Float64=1E-4) where R
+  idx_start,cutprobs = compute_forward_cutprobabilities(t_now,antiker,train,eps_prob)
+  idx_cut = rand(Categorical(cutprobs))
+  deleteat!(train,idx_start+idx_cut-1)
+  return nothing
 end

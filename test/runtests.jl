@@ -70,4 +70,10 @@ end
   idx_end = testidx + length(testcdf) - 1
   @test cdf(d, train[idx_end] - t_now ) > Cmax 
   @test cdf(d, train[idx_end-1] - t_now ) < Cmax 
+
+  antiker = T.AntiExponential(0.1)
+  timehor = T.antikernel_horizon(antiker,1E-5)
+
+  @test isapprox(pdf(Exponential(0.1),timehor),1E-5)
+  @test pdf(Exponential(0.1),timehor*0.999) > 1E-5
 end

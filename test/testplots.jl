@@ -11,15 +11,16 @@ using LinearAlgebra
 using Distributions
 
 
+
 ##
-myrate = 80.0
+myrate = 100.0
 markings = [[1],[2]]
-probs = [1.,2.]
+probs = [1.,1.8]
 jitters = [T.NoJitter(),T.NoJitter()]
 probs ./= sum(probs)
-antiprobs = [1.]
+antiprobs = [0.8]
 antimarkings = [(1,2),]
-antikernels = [T.AntiExponential(0.1),]
+antikernels = [T.AntiExponential(0.2),]
 
 rate_parent = T.get_parent_rate(1,myrate,markings,probs)
 gen = T.pAGTAS(rate_parent,markings,probs,jitters,
@@ -35,18 +36,31 @@ const rates_num = [ length(tr)/Ttot for tr in trains ]
 
 ##
 
-_ = let dtcov = 10E-3,
+function crosscov_an(t)
+  t < 0 && return 0.0
+  τ = antikernels[1].τ
+  p = probs[1]*antiprobs[1]
+  return - rate_parent*p*exp(-t/τ)/τ#*0.8
+end
+
+_ = let dtcov = 20E-3,
   Tcov = 1.0
   (covtimes,covs) =  T.covariance_density_ij(trains...,dtcov,Tcov)
   plt = plot()
-  scatter!(plt,covtimes,covs;label="numerical",leg=false)
+  scatter!(plt,covtimes,covs;label="numerical",leg=false,xlabel="time (s)",
+    ylabel="cross covariance density")
+  ts = range(-Tcov,Tcov;length=200)
+  plot!(plt,ts,crosscov_an.(ts);leg=false, linewidth=2 )
   plt
 end
 
 ##
 
+
+##
+
 _ = let plt = plot(),
-  tlims = (11.,13.0),
+  tlims = (0,2.0),
   msize = 34,
   trplot1 = filter(t-> tlims[1]< t<tlims[2],trains[1])
   trplot2 = filter(t-> tlims[1]< t<tlims[2],trains[2])
@@ -57,6 +71,9 @@ _ = let plt = plot(),
   plot!(plt;ylims=(0.95,1.1),leg=false)
 end
 
+##
+_ = let plt=plot()
+end
 
 ##
 
