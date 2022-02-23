@@ -56,7 +56,7 @@ struct JitterPaired{D<:UnivariateDistribution} <: Jittering
 end
 @inline function jitter!(v::Vector{Float64},j::JitterPaired)
   ji = rand(j.d)
-  v[2] .+= ji
+  v[2] += ji
   return v
 end
 
