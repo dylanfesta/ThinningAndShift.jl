@@ -86,6 +86,7 @@ function make_samples_with_parent(g::GTAS{R,I},t_tot::R) where {R,I}
   nt = length(ts_ancestor)
   attributions = rand(g.marking_selector,nt)
   trains = [Vector{R}(undef,0) for _ in 1:g.n] 
+  # can be optimized by preallocating trains, based on expected rate!
   for (t_k,k) in zip(ts_ancestor,attributions)
     mark_k = g.markings[k]
     n_k = length(mark_k)

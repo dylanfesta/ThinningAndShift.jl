@@ -77,7 +77,6 @@ end
 
 ##
 
-_ = let r1 = length()
 
 _ = let x=range(0,10.;length=150)
   d = Exponential(inv(3.0)) 
@@ -129,3 +128,10 @@ covnum = cov(rates;dims=2) * dT
 rate_parent
 
 ##
+
+struct booh{N,NT<:NTuple{N,Number}}
+  vals::NT
+end
+
+
+b = booh((1.,4,Float32(3.3)))

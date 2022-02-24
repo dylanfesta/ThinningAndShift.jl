@@ -139,3 +139,68 @@ function apply_antispike2!(t_now::R,antiker::AntiExponential,
   deleteat!(train,idx_start+idx_cut-1)
   return nothing
 end
+
+
+##
+
+
+# sequential antispikes 
+
+abstract type AbstractMarking end
+
+struct Marking <: AbstractMarking
+  vals::Vector{Int64}
+end
+struct AntiMarking <: AbstractMarking
+  vals::Vector{Int64}
+end
+
+
+struct sAGTAS{N,NTR<:NTuple{N,Float64},
+        NTM<:NTuple{N,AbstractMarking},
+        NTJ<:NTuple{N,Jittering}}
+  n::Int64
+  rate_markings::NTR
+  markings::NTM
+  jitters::NTJ
+  marking_selector::Categorical{Float64}
+end
+nmarkings(agta::sAGTAS) = length(agta.markings)
+
+function sAGTAS(n::Int64,rate_markings::Vector{Float64},markings::Vector{M},
+  markings_probs::Vector{R},jitters::Vector{J}) where {M<:AbstractMarking,J<:Jittering}
+  @assert sum(markings_probs) ≈ 1  
+  @assert length(markings_probs) == length(markings)
+  @assert length(markings_probs) == length(jitters)
+  marking_select=Categorical(markings_probs)
+  return sAGTAS(n,(rate_markings...),(markings...),(jitters...),marking_select)
+end
+
+
+function make_samples_with_parent(g::sAGTAS,t_tot::Real)
+  # initialize trains
+  trains = [Vector{R}(undef,0) for _ in 1:g.n] 
+  # one train for each marking
+  # (saved to keep antimarkings for backwards move)
+  t_forw = t_tot*1.1+10.0
+  trains_markings = map(g.rate_markings) do rat
+    make_poisson_samples(rat,t_forw)
+  end
+  # forward move
+  for (train_marking,marking,jitt) in zip(trains_markings,g.markings,g.jitters)
+    add_marking_to_trains!(trains,train_marking,marking,jitt)
+  end
+  # clean up trains: sorted, and > 0
+  sort!.(trains)
+  tmin = minimum(first.(trains))
+  if tmin < 0
+    for tr in trains
+      tr .-= tmin
+    end
+  end
+  # backwards now!
+  for (train_marking,marking,jitt) in zip(trains_markings,g.markings,g.jitters)
+    remove_antimarkings_from_trains!(trains,train_marking,marking,jitt)
+  end
+  return trains,ts_ancestor,attributions
+end
