@@ -1,39 +1,17 @@
-
 push!(LOAD_PATH, abspath(@__DIR__,".."))
 
 using ThinningAndShift ; global const T = ThinningAndShift
 
-using Random
-Random.seed!(0)
 using Test
 using Plots; using NamedColors; theme(:dark)
 using LinearAlgebra
 using Distributions
 
 
+using Random
+Random.seed!(0)
 
 ##
-myrate = 100.0
-markings = [[1],[2]]
-probs = [1.,1.8]
-jitters = [T.NoJitter(),T.NoJitter()]
-probs ./= sum(probs)
-antiprobs = [0.8]
-antimarkings = [(1,2),]
-antikernels = [T.AntiExponential(0.2),]
-
-rate_parent = T.get_parent_rate(1,myrate,markings,probs)
-gen = T.pAGTAS(rate_parent,markings,probs,jitters,
-      antimarkings,antiprobs,antikernels)
-
-
-
-##
-const Ttot = 5000.0
-@time trains = T.make_samples(gen,Ttot);
-
-const rates_num = [ length(tr)/Ttot for tr in trains ]
-
 ##
 
 function crosscov_an(t)

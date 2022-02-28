@@ -164,23 +164,22 @@ struct sAGTAS{N,NTR<:NTuple{N,Float64},
   rate_markings::NTR
   markings::NTM
   jitters::NTJ
-  marking_selector::Categorical{Float64}
 end
 nmarkings(agta::sAGTAS) = length(agta.markings)
 
-function sAGTAS(n::Int64,rate_markings::Vector{Float64},markings::Vector{M},
-  markings_probs::Vector{Float64},jitters::Vector{J}) where {M<:AbstractMarking,J<:Jittering}
-  @assert sum(markings_probs) ≈ 1  
-  @assert length(markings_probs) == length(markings)
-  @assert length(markings_probs) == length(jitters)
-  marking_select=Categorical(markings_probs)
-  return sAGTAS(n,(rate_markings...),(markings...),(jitters...),marking_select)
+function sAGTAS(n::Int64,
+    rate_markings::Vector{Float64},
+    markings::Vector{M},
+    jitters::Vector{J}) where {M<:AbstractMarking,J<:Jittering}
+  @assert length(markings) == length(jitters)
+  @assert length(rate_markings) == length(jitters)
+  return sAGTAS(n,Tuple(rate_markings),Tuple(markings),Tuple(jitters))
 end
 
 
-function make_samples_with_parent(g::sAGTAS,t_tot::Real)
+function make_samples(g::sAGTAS,t_tot::R) where R<:Real
   # initialize trains
-  trains = [Vector{R}(undef,0) for _ in 1:g.n] 
+  trains = [Vector{Float64}(undef,0) for _ in 1:g.n] 
   # one train for each marking
   # (saved to keep antimarkings for backwards move)
   t_forw = t_tot*1.1+10.0
@@ -201,7 +200,7 @@ function make_samples_with_parent(g::sAGTAS,t_tot::Real)
   end
   # backwards now!
   for (train_marking,marking,jitt) in zip(trains_markings,g.markings,g.jitters)
-    remove_antimarkings_from_trains!(trains,train_marking,marking,jitt)
+    remove_antimarking_from_trains!(trains,train_marking,marking,jitt,t_tot)
   end
   # stop time right before t_tot
   for train in trains
@@ -209,17 +208,17 @@ function make_samples_with_parent(g::sAGTAS,t_tot::Real)
     k = searchsortedfirst(train,t_tot)
     keepat!(train,1:(k-1))
   end
-  return trains,ts_ancestor,attributions
+  return trains
 end
 
 # do nothing for antimarking
-function add_markings_to_trains!(::Vector,
+function add_marking_to_trains!(::Vector,
     ::Vector,::AntiMarking,jitter::Jittering)
   return nothing
 end
 
 # do the usual for markings 
-function add_markings_to_trains!(trains::Vector{Vector{R}},
+function add_marking_to_trains!(trains::Vector{Vector{R}},
     trainmark::Vector{R},marking::Marking,jitter::Jittering) where R<:Real
   mark = marking.vals
   n = length(mark)
@@ -234,12 +233,12 @@ end
 
 
 # do nothing for markings
-function remove_antimarkings_from_to_trains!(::Vector,
+function remove_antimarking_from_trains!(::Vector,
     ::Vector,::Marking,::Jittering,::Real)
   return nothing
 end
 
-function remove_antimarkings_from_to_trains!(trains::Vector{Vector{R}},
+function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
     trainmark::Vector{R},anti::AntiMarking,
     antijitter::AntiJitterExpSequential,t_tot::R) where R<:Real
   mark = anti.vals
