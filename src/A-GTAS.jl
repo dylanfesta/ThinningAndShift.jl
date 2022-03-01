@@ -153,6 +153,9 @@ struct AntiMarking <: AbstractMarking
   vals::Vector{Int64}
 end
 
+struct AntiJitterExp <: Jittering
+  τ::Float64
+end
 struct AntiJitterExpSequential <: Jittering
   τ::Float64
 end
@@ -269,9 +272,33 @@ function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
 end
 
 
+function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
+    trainmark::Vector{R},anti::AntiMarking,
+    antijitter::AntiJitterExp,t_tot::R) where R<:Real
+  mark = anti.vals
+  # remove excess time from mark train
+  kmax = searchsortedfirst(trainmark,t_tot)
+  keepat!(trainmark,1:(kmax-1))
+  # time horizon
+  t_incr =  antijitter_horizon(antijitter,1E-5)
+  for t_k in trainmark
+    tnow = t_k
+    tmax = t_k + t_incr
+    for ms in mark
+      trainh = trains[ms]
+      idx_start,cutprobs = 
+          compute_forward_killprobabilities(tnow,tmax,trainh,antijitter)
+      idx_cut = idx_start + rand(Categorical(cutprobs)) - 1
+      deleteat!(trainh,idx_cut)
+    end
+  end
+  return nothing
+end
+
+
 # returns idx of closest time >= t_start and probabilities of killing spike 
 function compute_forward_killprobabilities(t_start::R,t_end::R,train::Vector{R},
-     antijitter::AntiJitterExpSequential) where R<:Real
+     antijitter::Union{AntiJitterExpSequential,AntiJitterExp}) where R<:Real
   idx_start =  searchsortedfirst(train,t_start)
   idx_end = searchsortedfirst(train,t_end)
   ret = map(t -> exp(-(t-t_start)/antijitter.τ), view(train,idx_start:idx_end) )
