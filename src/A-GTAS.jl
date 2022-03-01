@@ -241,6 +241,15 @@ function remove_antimarking_from_trains!(::Vector,
   return nothing
 end
 
+
+@inline function antijitter_horizon(
+    antijitt::Union{AntiJitterExp,AntiJitterExpSequential},
+    eps_prob::Float64)
+  τ = antijitt.τ
+  return - τ * (log(τ)+log(eps_prob))
+end
+
+
 function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
     trainmark::Vector{R},anti::AntiMarking,
     antijitter::AntiJitterExpSequential,t_tot::R) where R<:Real
