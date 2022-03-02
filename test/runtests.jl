@@ -78,6 +78,14 @@ end
   @test pdf(Exponential(0.1),timehor*0.999) > 1E-5
 end
 
+
+
+function get_ff_num(_train,Ttot)
+  dtbin = 8.0
+  rates = T.bin_spikes(_train,dtbin,Ttot)
+  var(rates)/mean(rates)
+end
+
 @testset "negative corr 1D" begin
 
   myrate = 100.0
@@ -90,7 +98,7 @@ end
   gen = T.sAGTAS(1,rates,markings,jitters)
 
   Ttot = 1E3
-  @time trains = T.make_samples(gen,Ttot);
+  trains = T.make_samples(gen,Ttot);
 
   rate_num = length(trains[1])/Ttot 
   rate_expected = myrate * (1-killratio)
@@ -99,13 +107,35 @@ end
 
   # test FF 
   ff_expected = sum(rates) / (rates[1]-rates[2])
+  ff_num = get_ff_num(trains[1],Ttot)
+  @test isapprox(ff_expected,ff_num;rtol=0.2)
 
-  ff_num = let _train = trains[1],
-    dtbin = 8.0
-    rates = T.bin_spikes(_train,dtbin,Ttot)
-    var(rates)/mean(rates)
-  end
+  # repeat with the non-sequential one
+  jitters = [T.NoJitter(),T.AntiJitterExp(30E-3)]
+  gen = T.sAGTAS(1,rates,markings,jitters)
+  Ttot = 1E3
+  trains = T.make_samples(gen,Ttot);
+  rate_num = length(trains[1])/Ttot 
+  rate_expected = myrate * (1-killratio)
+  @test isapprox(rate_num,rate_expected;rtol=0.2)
 
+  # test FF 
+  ff_expected = sum(rates) / (rates[1]-rates[2])
+  ff_num = get_ff_num(trains[1],Ttot)
+  @test isapprox(ff_expected,ff_num;rtol=0.2)
+
+  # repeat with interval
+  jitters = [T.NoJitter(),T.AntiJitterStepSequential(1000.000)]
+  gen = T.sAGTAS(1,rates,markings,jitters)
+  Ttot = 1E3
+  trains = T.make_samples(gen,Ttot);
+  rate_num = length(trains[1])/Ttot 
+  rate_expected = myrate * (1-killratio)
+  @test isapprox(rate_num,rate_expected;rtol=0.2)
+
+  # test FF 
+  ff_expected = sum(rates) / (rates[1]-rates[2])
+  ff_num = get_ff_num(trains[1],Ttot)
   @test isapprox(ff_expected,ff_num;rtol=0.2)
 
 end

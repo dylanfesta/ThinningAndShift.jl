@@ -145,6 +145,7 @@ end
 # sequential antispikes 
 
 abstract type AbstractMarking end
+abstract type AbstractAntiJittering <: Jittering end
 
 struct Marking <: AbstractMarking
   vals::Vector{Int64}
@@ -153,12 +154,18 @@ struct AntiMarking <: AbstractMarking
   vals::Vector{Int64}
 end
 
-struct AntiJitterExp <: Jittering
+
+
+struct AntiJitterExp <: AbstractAntiJittering
   τ::Float64
 end
-struct AntiJitterExpSequential <: Jittering
+struct AntiJitterExpSequential <: AbstractAntiJittering
   τ::Float64
 end
+struct AntiJitterStepSequential <: AbstractAntiJittering
+  τ::Float64
+end
+
 
 struct sAGTAS{N,NTR<:NTuple{N,Float64},
         NTM<:NTuple{N,AbstractMarking},
@@ -249,10 +256,20 @@ end
   return - τ * (log(τ)+log(eps_prob))
 end
 
+@inline function antijitter_horizon(antijitt::AntiJitterStepSequential,::Float64)
+  return antijitter_horizon(antijitt)
+end
+@inline function antijitter_horizon(antijitt::AntiJitterStepSequential)
+  return antijitt.τ
+end
+
+
+
 
 function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
     trainmark::Vector{R},anti::AntiMarking,
-    antijitter::AntiJitterExpSequential,t_tot::R) where R<:Real
+    antijitter::Union{AntiJitterExpSequential,AntiJitterStepSequential},
+    t_tot::R) where R<:Real
   mark = anti.vals
   # remove excess time from mark train
   kmax = searchsortedfirst(trainmark,t_tot)
@@ -261,10 +278,9 @@ function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
     # find and remove next spike in first train 
     train1 = trains[mark[1]]
     idx_cut = searchsortedfirst(train1,t_k)
-    tkill = train1[idx_cut]
     deleteat!(train1,idx_cut)
     if length(mark) > 1
-      tnow = tkill
+      tnow = train1[idx_cut]
       t_incr =  antijitter_horizon(antijitter,1E-5)
       # in following trains (if any) remove with exp probability
       for ms in mark[2:end]
@@ -314,4 +330,12 @@ function compute_forward_killprobabilities(t_start::R,t_end::R,train::Vector{R},
   ret = map(t -> exp(-(t-t_start)/antijitter.τ), view(train,idx_start:idx_end) )
   ret ./= sum(ret)
   return idx_start,ret
+end
+
+function compute_forward_killprobabilities(t_start::R,t_end::R,train::Vector{R},
+     ::AntiJitterStepSequential) where R<:Real
+  idx_start =  searchsortedfirst(train,t_start)
+  idx_end = searchsortedfirst(train,t_end)-1 # smaller than t_end
+  n_spikes = idx_end-idx_start+1
+  return idx_start,fill(inv(n_spikes),n_spikes)
 end
