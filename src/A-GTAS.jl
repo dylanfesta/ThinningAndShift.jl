@@ -264,8 +264,6 @@ end
 end
 
 
-
-
 function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
     trainmark::Vector{R},anti::AntiMarking,
     antijitter::Union{AntiJitterExpSequential,AntiJitterStepSequential},
