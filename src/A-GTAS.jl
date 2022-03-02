@@ -260,9 +260,9 @@ function remove_antimarking_from_trains!(trains::Vector{Vector{R}},
   for t_k in trainmark
     # find and remove next spike in first train 
     train1 = trains[mark[1]]
-    knext = searchsortedfirst(train1,t_k)
-    tkill = train1[knext]
-    deleteat!(train1,knext)
+    idx_cut = searchsortedfirst(train1,t_k)
+    tkill = train1[idx_cut]
+    deleteat!(train1,idx_cut)
     if length(mark) > 1
       tnow = tkill
       t_incr =  antijitter_horizon(antijitter,1E-5)
