@@ -336,6 +336,6 @@ function compute_forward_killprobabilities(t_start::R,t_end::R,train::Vector{R},
      ::AntiJitterStepSequential) where R<:Real
   idx_start =  searchsortedfirst(train,t_start)
   idx_end = searchsortedfirst(train,t_end)-1 # smaller than t_end
-  n_spikes = idx_end-idx_start+1
+  n_spikes = max(idx_end-idx_start+1,1) # if no spikes in interval, just erase next one :-(
   return idx_start,fill(inv(n_spikes),n_spikes)
 end
