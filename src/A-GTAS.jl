@@ -337,3 +337,19 @@ function compute_forward_killprobabilities(t_start::R,t_end::R,train::Vector{R},
   n_spikes = max(idx_end-idx_start+1,1) # if no spikes in interval, just erase next one :-(
   return idx_start,fill(inv(n_spikes),n_spikes)
 end
+
+
+function remove_next!(train::Vector{Float64},antitrain::Vector{Float64})
+  for i in eachindex(antitrain)
+    remove_next!(train,antitrain[i])
+  end
+  return nothing
+end
+
+function remove_next!(train::Vector{Float64},t::Float64)
+  if  t < train[end]
+    idx_cut = searchsortedfirst(train,t)
+    deleteat!(train,idx_cut)
+  end
+  return nothing
+end
