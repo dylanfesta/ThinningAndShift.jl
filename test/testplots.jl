@@ -19,6 +19,9 @@ function crosscov_an(t)
   return - rate_parent*p*exp(-t/τ)/τ#*0.8
 end
 
+
+##
+
 _ = let dtcov = 20E-3,
   Tcov = 1.0
   (covtimes,covs) =  T.covariance_density_ij(trains...,dtcov,Tcov)
@@ -29,9 +32,6 @@ _ = let dtcov = 20E-3,
   plot!(plt,ts,crosscov_an.(ts);leg=false, linewidth=2 )
   plt
 end
-
-##
-
 
 ##
 
