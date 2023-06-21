@@ -38,11 +38,9 @@ raster_img = U.draw_spike_raster([train1,train2],1E-2,10.0;
   spike_size=50,spike_separator=10)
 
 
-img = DisplayAs.PNG(raster_img)
-
-# or this ?
-
-img = DisplayAs.Text(DisplayAs.PNG(raster_img))
+# img = DisplayAs.PNG(raster_img) #src
+# or this ? #src
+# img = DisplayAs.Text(DisplayAs.PNG(raster_img)) #src
 
 ## publish in documentation #src
 thisfile = joinpath(splitpath(@__FILE__)[end-1:end]...) #src
