@@ -29,10 +29,10 @@ t_end = 500.0
 r1_num = length(train1)/t_end
 r2_num = length(train2)/t_end
 
-DisplayAs.Text("""
+"""
 Rate should be around 10.0
 rate 1 : $(r1_num)
-rate 2 : $(r2_num)""")
+rate 2 : $(r2_num)"""
 ````
 
 Now show the raster
