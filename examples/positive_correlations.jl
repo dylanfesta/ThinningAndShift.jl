@@ -1,8 +1,7 @@
 push!(LOAD_PATH, abspath(@__DIR__,"..")) #src
 using ThinningAndShift ; global const T = ThinningAndShift
-using Markdown
+using Makie, CairoMakie
 using SpikeTrainUtilities ; global const U = SpikeTrainUtilities
-using DisplayAs
 
 # # Simple correlated firing
 
@@ -37,8 +36,12 @@ rate 2 : $(r2_num)""")
 raster_img = U.draw_spike_raster([train1,train2],1E-2,10.0;
   spike_size=50,spike_separator=10)
 
+# and the plot!
 
-# img = DisplayAs.PNG(raster_img) #src
+
+raster_plot = U.plot_spike_raster([train1,train2],1E-2,10.0;
+  spike_size=50,spike_separator=10)
+
 # or this  ? Hello?! #src
 # img = DisplayAs.Text(DisplayAs.PNG(raster_img)) #src
 

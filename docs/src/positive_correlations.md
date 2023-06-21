@@ -4,9 +4,8 @@ EditURL = "https://github.com/dylanfesta/HawkesSimulator.jl/blob/master/examples
 
 ````@example positive_correlations
 using ThinningAndShift ; global const T = ThinningAndShift
-using Markdown
+using Makie, CairoMakie
 using SpikeTrainUtilities ; global const U = SpikeTrainUtilities
-using DisplayAs
 ````
 
 # Simple correlated firing
@@ -40,6 +39,13 @@ Now show the raster
 
 ````@example positive_correlations
 raster_img = U.draw_spike_raster([train1,train2],1E-2,10.0;
+  spike_size=50,spike_separator=10)
+````
+
+and the plot!
+
+````@example positive_correlations
+raster_plot = U.plot_spike_raster([train1,train2],1E-2,10.0;
   spike_size=50,spike_separator=10)
 ````
 
