@@ -41,15 +41,6 @@ Now show the raster
 ````@example positive_correlations
 raster_img = U.draw_spike_raster([train1,train2],1E-2,10.0;
   spike_size=50,spike_separator=10)
-
-
-img = DisplayAs.PNG(raster_img)
-````
-
-or this ?
-
-````@example positive_correlations
-img = DisplayAs.Text(DisplayAs.PNG(raster_img))
 ````
 
 ---

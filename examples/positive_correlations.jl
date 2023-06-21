@@ -39,7 +39,7 @@ raster_img = U.draw_spike_raster([train1,train2],1E-2,10.0;
 
 
 # img = DisplayAs.PNG(raster_img) #src
-# or this ? #src
+# or this  ? Hello?! #src
 # img = DisplayAs.Text(DisplayAs.PNG(raster_img)) #src
 
 ## publish in documentation #src
