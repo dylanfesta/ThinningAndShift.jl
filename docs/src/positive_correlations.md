@@ -1,17 +1,20 @@
-push!(LOAD_PATH, abspath(@__DIR__,"..")) #src
+```@meta
+EditURL = "https://github.com/dylanfesta/HawkesSimulator.jl/blob/master/examples/positive_correlations.jl"
+```
+
+````@example positive_correlations
 using ThinningAndShift ; global const T = ThinningAndShift
 using Markdown
 using SpikeTrainUtilities ; global const U = SpikeTrainUtilities
 using DisplayAs
+````
 
-# # Simple correlated firing
+# Simple correlated firing
 
-
-#=
 Neuron A and B fire at 10 Hz each, half of the time they fire together.
 in perfect sync
-=#
 
+````@example positive_correlations
 markings = [ [1,],[2,],[1,2]]
 markings_probs = fill(0.33333,3)
 markings_probs ./= sum(markings_probs)
@@ -32,19 +35,25 @@ Rate should be around 10.0\
 rate 1 : $r1_num\
 rate 2 : $r2_num
 """
+````
 
-# Now show the raster
+Now show the raster
 
+````@example positive_correlations
 raster_img = U.draw_spike_raster([train1,train2],1E-2,10.0;
   spike_size=50,spike_separator=10)
 
 
 img = DisplayAs.PNG(raster_img)
+````
 
-# or this ?
+or this ?
 
+````@example positive_correlations
 img = DisplayAs.Text(DisplayAs.PNG(raster_img))
+````
 
-## publish in documentation #src
-thisfile = joinpath(splitpath(@__FILE__)[end-1:end]...) #src
-using Literate; Literate.markdown(thisfile,"docs/src";documenter=true,repo_root_url="https://github.com/dylanfesta/HawkesSimulator.jl/blob/master") #src
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+
