@@ -13,6 +13,7 @@ CurrentModule = ThinningAndShift
 ## Examples
 
 1. [**First example**](./positive_correlations.md)
+1. [**Some data I needed to generate**](./more_positive_corr.md)
 
 ```@index
 ```

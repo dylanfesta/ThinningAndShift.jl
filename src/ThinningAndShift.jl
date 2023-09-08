@@ -31,6 +31,7 @@ end
 end
 @inline function jitter!(v::Vector{Float64},j::JitterDistribution)
   jits = rand(j.d)
+  #@assert length(v) == length(jits) "length of jittering vector must match length of spike train, but instead got $(length(v)) and $(length(jits))"
   v .+= jits
   return v
 end

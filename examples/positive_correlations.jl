@@ -2,6 +2,7 @@ push!(LOAD_PATH, abspath(@__DIR__,"..")) #src
 using ThinningAndShift ; global const T = ThinningAndShift
 using Makie, CairoMakie
 using SpikeTrainUtilities ; global const U = SpikeTrainUtilities
+using Random ; Random.seed!(0)
 
 # # Simple correlated firing
 
