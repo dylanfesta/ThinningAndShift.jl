@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Simple correlated firing, but for more neurons · ThinningAndShift.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://dylanfesta.github.io/ThinningAndShift.jl/more_positive_corr/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">ThinningAndShift.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Simple correlated firing, but for more neurons</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Simple correlated firing, but for more neurons</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dylanfesta/ThinningAndShift.jl/blob/main/examples/more_positive_corr.jl#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><pre><code class="language- hljs">using ThinningAndShift ; global const T = ThinningAndShift
+using Makie, CairoMakie
+using SpikeTrainUtilities ; global const U = SpikeTrainUtilities
+using Distributions
+using Random ; Random.seed!(0)</code></pre><h1 id="Simple-correlated-firing,-but-for-more-neurons"><a class="docs-heading-anchor" href="#Simple-correlated-firing,-but-for-more-neurons">Simple correlated firing, but for more neurons</a><a id="Simple-correlated-firing,-but-for-more-neurons-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-correlated-firing,-but-for-more-neurons" title="Permalink"></a></h1><p>Here I consder k neurons. A group of kas of them fires together p% of the time, with specific delays between one another. The other half is just uncorrelated. All neurons have the same rate.</p><pre><code class="language- hljs">const k = 20
+const kas = 8
+const pkas = 0.5
+const therate = 30.0
+const markings = vcat([collect(1:kas)],[ [i,] for i in 1:k])
+
+markings_probs =  vcat([pkas,],fill((1-pkas),kas),fill(1.0,k-kas))
+markings_probs ./= sum(markings_probs)
+
+const parent_rate  = therate/markings_probs[end]
+
+const true_lags = vcat(0.0,rand(Uniform(-0.3,0.3),kas-1))
+
+jit_for_assembly = MultivariateNormal(true_lags,5E-3*ones(kas))
+
+
+jitters_d = vcat(T.JitterDistribution(jit_for_assembly), fill(T.NoJitter(),length(markings)-1))
+
+gtas_test = T.GTAS(parent_rate,markings,markings_probs,jitters_d)
+
+t_end = 10_000.0
+thetrains,train_parent,attrib = T.make_samples_with_parent(gtas_test,t_end)
+
+therates =  @. length(thetrains)/t_end</code></pre><h2 id="Export-to-HDF5"><a class="docs-heading-anchor" href="#Export-to-HDF5">Export to HDF5</a><a id="Export-to-HDF5-1"></a><a class="docs-heading-anchor-permalink" href="#Export-to-HDF5" title="Permalink"></a></h2><pre><code class="language- hljs">using HDF5
+const savefile = &quot;/tmp/test_train_single_assembly.h5&quot;</code></pre><p>save true lags</p><pre><code class="language- hljs">using HDF5
+
+h5open(savefile, &quot;w&quot;) do file
+    write(file, &quot;true_lags&quot;, true_lags)
+    write(file,&quot;t_end&quot;,t_end)
+    for neu in 1:k
+        write(file, &quot;train_$(neu)&quot;, thetrains[neu])
+    end
+    write(file,&quot;train_parent&quot;,train_parent)
+    write(file,&quot;attrib&quot;,attrib)
+end
+
+#</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Friday 8 September 2023 15:19">Friday 8 September 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
