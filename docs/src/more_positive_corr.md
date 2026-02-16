@@ -63,8 +63,6 @@ h5open(savefile, "w") do file
     write(file,"train_parent",train_parent)
     write(file,"attrib",attrib)
 end
-
-#
 ````
 
 ---
