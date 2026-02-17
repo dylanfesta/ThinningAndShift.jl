@@ -1,11 +1,12 @@
 ```@meta
-EditURL = "https://github.com/dylanfesta/HawkesSimulator.jl/blob/master/examples/positive_correlations.jl"
+EditURL = "../../examples/positive_correlations.jl"
 ```
 
 ````@example positive_correlations
 using ThinningAndShift ; global const T = ThinningAndShift
 using Makie, CairoMakie
 using SpikeTrainUtilities ; global const U = SpikeTrainUtilities
+using Random ; Random.seed!(0)
 ````
 
 # Simple correlated firing
