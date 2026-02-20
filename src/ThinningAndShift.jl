@@ -1,32 +1,46 @@
 module ThinningAndShift
 
+# external dependencies
 using Distributions
 using Random
-
 import LinearAlgebra: dot, diagind
 import Statistics: mean, var, cov
 import StatsBase: midpoints
 
-abstract type Jittering end
 
+include("types.jl")
+include("generators.jl")
+# include("jittering.jl")
+# include("generating.jl")
+# include("analysis.jl")
+
+"""
+Jittering selects the type of perturbation applied to the event times.
+
+NoJitter: 
+  no jittering
+
+JitterDistribution(Distribution.UnivariateDistribution):
+  Sample i.i.d. and add to event times
+
+JitterIncremental: apply a distribution to each spike time, cumulatively
+JitterPaired: apply a distribution to each pair of spike times
+"""
+abstract type Jittering end
 #####
 # no jittering
 struct NoJitter <: Jittering end
 @inline function jitter!(v::Vector{Float64}, ::NoJitter)
   return v
 end
-
 ####
 # apply a distribution
 struct JitterDistribution{D<:Distribution} <: Jittering
   d::D
 end
 @inline function jitter!(v::Vector{Float64}, j::JitterDistribution{D}) where D<:UnivariateDistribution
-  n = length(v)
-  if n > 1
-    jits = rand(j.d, n)
-    v .+= jits
-  end
+  jits = rand(j.d, n)
+  v .+= jits
   return v
 end
 @inline function jitter!(v::Vector{Float64}, j::JitterDistribution)
@@ -113,18 +127,6 @@ function make_samples(gtas::GTAS, t_tot::Real)
 end
 
 
-function make_poisson_samples(rate::Real, t_tot::Real)
-  ret = Vector{Float64}(undef, round(Integer, 1.3 * rate * t_tot + 10)) # preallocate
-  t_curr = 0.0
-  k_curr = 1
-  while t_curr <= t_tot
-    Δt = -log(rand()) / rate
-    t_curr += Δt
-    ret[k_curr] = t_curr
-    k_curr += 1
-  end
-  return keepat!(ret, 1:k_curr-2)
-end
 
 ####
 # Cumulants
