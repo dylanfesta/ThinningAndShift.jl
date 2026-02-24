@@ -14,30 +14,6 @@ include("generators.jl")
 # include("generating.jl")
 # include("analysis.jl")
 
-"""
-Jittering selects the type of perturbation applied to the event times.
-
-NoJitter: 
-  no jittering
-
-JitterDistribution(Distribution.UnivariateDistribution):
-  Sample i.i.d. and add to event times
-
-JitterIncremental: apply a distribution to each spike time, cumulatively
-JitterPaired: apply a distribution to each pair of spike times
-"""
-abstract type Jittering end
-#####
-# no jittering
-struct NoJitter <: Jittering end
-@inline function jitter!(v::Vector{Float64}, ::NoJitter)
-  return v
-end
-####
-# apply a distribution
-struct JitterDistribution{D<:Distribution} <: Jittering
-  d::D
-end
 @inline function jitter!(v::Vector{Float64}, j::JitterDistribution{D}) where D<:UnivariateDistribution
   jits = rand(j.d, n)
   v .+= jits
@@ -50,11 +26,6 @@ end
   return v
 end
 
-# increment by given distribution
-struct JitterIncremental{D<:UnivariateDistribution} <: Jittering
-  d::D
-end
-
 @inline function jitter!(v::Vector{Float64}, j::JitterIncremental)
   n = length(v)
   if n > 1
@@ -64,11 +35,6 @@ end
   return v
 end
 
-####
-## only for sets of two, shifts one spike time w.r.t. the other
-struct JitterPaired{D<:UnivariateDistribution} <: Jittering
-  d::D
-end
 @inline function jitter!(v::Vector{Float64}, j::JitterPaired)
   ji = rand(j.d)
   v[2] += ji
@@ -77,54 +43,8 @@ end
 
 
 
-struct GTAS{R,I,J<:Jittering}
-  n::I
-  rate_parent::R
-  markings::Vector{Vector{I}}
-  marking_selector::Categorical{R}
-  jitters::Vector{J}
-  function GTAS(rate_parent::R, markings::Vector{Vector{I}},
-    markings_probs::Vector{R}, jitters::Vector{J}) where {R<:Real,I<:Integer,J<:Jittering}
-    @assert sum(markings_probs) ≈ 1
-    @assert length(markings_probs) == length(markings)
-    @assert length(markings_probs) == length(jitters)
-    marking_select = Categorical(markings_probs)
-    n = maximum(maximum.(markings))
-    return new{R,I,J}(n, rate_parent, markings, marking_select, jitters)
-  end
-end
-
 jitter!(v::Vector{R}, k::Integer, g::GTAS) where R = jitter!(v, g.jitters[k])
 
-function make_samples_with_parent(g::GTAS{R,I}, t_tot::R) where {R,I}
-  ts_ancestor = make_poisson_samples(g.rate_parent, t_tot)
-  nt = length(ts_ancestor)
-  attributions = rand(g.marking_selector, nt)
-  trains = [Vector{R}(undef, 0) for _ in 1:g.n]
-  # can be optimized by preallocating trains, based on expected rate!
-  for (t_k, k) in zip(ts_ancestor, attributions)
-    mark_k = g.markings[k]
-    n_k = length(mark_k)
-    spikes_k = jitter!(fill(t_k, n_k), k, g)
-    for (tkk, kk) in zip(spikes_k, mark_k)
-      push!(trains[kk], tkk)
-    end
-  end
-  # clean up trains... sorted, and > 0
-  sort!.(trains)
-  tmin = minimum(first.(trains))
-  if tmin < 0
-    for tr in trains
-      tr .-= tmin
-    end
-    ts_ancestor .-= tmin
-  end
-  return trains, ts_ancestor, attributions
-end
-
-function make_samples(gtas::GTAS, t_tot::Real)
-  return make_samples_with_parent(gtas, t_tot)[1]
-end
 
 
 
