@@ -106,22 +106,26 @@ function self_interacting_1D_train(kernel_func::Function, rate_start::Real, t_to
   k_generation = 0
   current_generation = make_poisson_samples(rate_start, t_tot)
   ret_spikes = Vector{Float64}[]
-  history_lengths = Int[]
   n_window = 20
+  history_lengths = Vector{Int}(undef, n_window)
+  avg_prev = Inf
 
   while length(current_generation) > 0
     k_generation += 1
-    push!(history_lengths, length(current_generation))
+
+    idx = mod1(k_generation, n_window)
+    history_lengths[idx] = length(current_generation)
+
     if verbose
       @info "Generation $k_generation: $(length(current_generation)) spikes"
     end
 
-    if k_generation >= 2 * n_window && k_generation % n_window == 0
-      avg_prev = sum(@view history_lengths[end-2*n_window+1:end-n_window]) / n_window
-      avg_curr = sum(@view history_lengths[end-n_window+1:end]) / n_window
+    if idx == n_window
+      avg_curr = sum(history_lengths) / n_window
       if avg_curr >= avg_prev
         error("No net reduction in generation size across $n_window iterations (prev avg: $avg_prev, curr avg: $avg_curr). Check the area under the kernel curve.")
       end
+      avg_prev = avg_curr
     end
 
     push!(ret_spikes, current_generation)
