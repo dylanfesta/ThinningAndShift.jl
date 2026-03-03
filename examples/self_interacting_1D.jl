@@ -35,9 +35,13 @@ const r_expected = rstart / (1 - wker)
 @info "Generating self-interacting Poisson process with expected rate $(r_expected)"
 
 ##
-
-train_self = T.self_interacting_1D_train(my_kernel, rstart, Ttot;
+@info "Testing slow version"
+@time train_self = T.self_interacting_1D_train(my_kernel, rstart, Ttot;
   rate_max=10 * r_expected, verbose=true)
+
+@info "testing fast version"
+@time train_self_fast = T.self_interacting_1D_train(my_kernel, rstart, Ttot;
+  rate_max=10 * r_expected, verbose=true, time_horizon=τker * 4.0)
 
 ##
 true_rate = length(train_self) / Ttot

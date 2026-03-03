@@ -90,18 +90,28 @@ As a rule of thumb, consider the typical timescale of the kernel, and how many s
 """
 function self_interacting_1D_train(kernel_func::Function, rate_start::Real, t_tot::Real;
   rate_max::Union{Real,Nothing}=nothing,
-  verbose::Bool=false)
+  verbose::Bool=false,
+  time_horizon::Union{Real,Nothing}=nothing)
   # TODO: implement automatic calculation of rate_max
   if rate_max === nothing
     error("rate_max calculation not implemented yet, please provide rate_max")
   end
 
   # convolution of kernel with all (meaningful) spiketimes
-  # TO-DO , consider adding a time-horizon argument to further reduce this iteration
-  function kernel_superfunction(spiketimes::Vector{Float64}, t_curr::Real)
+  function kernel_superfunction(spiketimes::Vector{Float64}, t_curr::Real;
+    time_horizon::Union{Real,Nothing}=nothing)
     # pick only spikes that are in the past to save some steps
-    spiketimes_past = @view spiketimes[spiketimes.<t_curr]
-    return mapreduce(t_spk -> kernel_func(t_curr - t_spk), +, spiketimes_past; init=0.0)
+    if isnothing(time_horizon)
+      spiketimes_past = @view spiketimes[spiketimes.<t_curr]
+      return mapreduce(t_spk -> kernel_func(t_curr - t_spk), +, spiketimes_past; init=0.0)
+    end
+
+    # using sorted search, find the first spike that is within the time horizon
+    idx_start = max(1, searchsortedfirst(spiketimes, t_curr - time_horizon))
+    # and last spike to consider too
+    idx_end = min(length(spiketimes), searchsortedlast(spiketimes, t_curr))
+    # sum the kernel for all spikes in the window
+    return mapreduce(t_spk -> kernel_func(t_curr - t_spk), +, spiketimes[idx_start:idx_end]; init=0.0)
   end
   k_generation = 0
   current_generation = make_poisson_samples(rate_start, t_tot)
@@ -129,7 +139,7 @@ function self_interacting_1D_train(kernel_func::Function, rate_start::Real, t_to
     end
 
     push!(ret_spikes, current_generation)
-    current_generation = modulated_event_train(t -> kernel_superfunction(current_generation, t), rate_max, t_tot)
+    current_generation = modulated_event_train(t -> kernel_superfunction(current_generation, t; time_horizon=time_horizon), rate_max, t_tot)
   end
   return sort!(vcat(ret_spikes...))
 end
