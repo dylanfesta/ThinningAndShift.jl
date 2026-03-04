@@ -31,6 +31,12 @@ Based on simple thinning: samples from a Poisson process with rate `rate_max` an
 keeps each sample with probability `rate_func(t) / rate_max`.
 
 `rate_max` must be strictly greater than `rate_function(t)` for all t in [0,t_tot].
+
+Parameters:
+- rate_func::Function : the rate function
+- rate_max::Real : the maximum rate
+- t_tot::Real : the total time
+
 """
 function modulated_event_train(rate_func::Function, rate_max::Real, t_tot::Real)
   parent_train = make_poisson_samples(rate_max, t_tot)
@@ -46,7 +52,20 @@ function modulated_event_train(rate_func::Function, rate_max::Real, t_tot::Real)
 end
 
 
+"""
+make_samples_with_parent(g::GTAS{R,I}, t_tot::R) where {R,I}
 
+Samples from a generalized thinning and shift process, returning event times in the (0,t_tot) interval.
+
+Parameters:
+- g::GTAS{R,I} : the generalized thinning and shift process
+- t_tot::R : the total time
+
+Returns:
+- trains::Vector{Vector{R}} : the trains of events for each unit
+- ts_ancestor::Vector{R} : the ancestor train
+- attributions::Vector{I} : the marking attributed to each event in the ancestor train (therefore it has the same length)
+"""
 function make_samples_with_parent(g::GTAS{R,I}, t_tot::R) where {R,I}
   ts_ancestor = make_poisson_samples(g.rate_parent, t_tot)
   nt = length(ts_ancestor)
@@ -79,6 +98,11 @@ end
 
 
 """
+function self_interacting_1D_train(kernel_func::Function, rate_start::Real, t_tot::Real;
+  rate_max::Union{Real,Nothing}=nothing,
+  verbose::Bool=false,
+  time_horizon::Union{Real,Nothing}=nothing)
+
 Generates a 1D self-interacting Poisson process following an arbitrary interaction kernel function.
 
 IMPORTANT: the kernel function cannot have area larger than 1. And `rate_max` must be strictly greater than `rate_function(t)` for all t in [0,t_tot].
@@ -86,7 +110,15 @@ this is non-trivial, as repeated nearby spikes result in multiple staked kernels
 
 Final rate will be rate_start/(1-kernel_area)
 
-As a rule of thumb, consider the typical timescale of the kernel, and how many spikes you expect in that timescale. 
+
+Parameters:
+- kernel_func::Function : the interaction kernel function
+- rate_start::Real : the initial rate of the process
+- t_tot::Real : the total time of the process
+- rate_max::Union{Real} : the maximum rate of the process
+- verbose::Bool, default false : whether to print progress
+- time_horizon::Union{Real,Nothing}, default nothing : the time horizon for the kernel function. If provided,
+     it optimizes the generation process by only considering spikes within this time horizon.
 """
 function self_interacting_1D_train(kernel_func::Function, rate_start::Real, t_tot::Real;
   rate_max::Union{Real,Nothing}=nothing,
